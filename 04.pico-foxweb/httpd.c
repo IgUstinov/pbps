@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <time.h>
 
 #define MAX_CONNECTIONS 1000
 #define BUF_SIZE 65535
@@ -22,6 +23,9 @@ static void respond(int);
 
 static char *buf;
 
+int status = 200;
+int response_size = 0;
+
 // Client request
 char *method, // "GET" or "POST"
     *uri,     // "/index.html" things before '?'
@@ -31,12 +35,31 @@ char *method, // "GET" or "POST"
 
 int payload_size;
 
+void log_request(const char *ip, const char *method, const char *uri, int status, int response_size) {
+  FILE *log_file = fopen("/var/log/foxweb.log", "a");
+  if (!log_file) {
+    perror("Failed to open log file");
+    return;
+  }
+
+  time_t now = time(NULL);
+  struct tm *tm_info = localtime(&now);
+  char timestamp[32];
+  strftime(timestamp, sizeof(timestamp), "%d/%b/%Y:%H:%M:%S %z", tm_info);
+
+  fprintf(log_file, "%s - - [%s] \"%s %s HTTP/1.1\" %d %d\n",
+          ip, timestamp, method, uri, status, response_size);
+
+  fclose(log_file);
+}
+
 void serve_forever(const char *PORT) {
   struct sockaddr_in clientaddr;
   socklen_t addrlen;
 
   int slot = 0;
 
+  // Используем stderr для отладочных сообщений
   fprintf(stderr, "Server started %shttp://127.0.0.1:%s%s\n", "\033[92m", PORT,
          "\033[0m");
 
@@ -59,7 +82,7 @@ void serve_forever(const char *PORT) {
     clients[slot] = accept(listenfd, (struct sockaddr *)&clientaddr, &addrlen);
 
     if (clients[slot] < 0) {
-      perror("accept() error");
+      fprintf(stderr, "accept() error\n");
       exit(1);
     } else {
       if (fork() == 0) {
@@ -162,15 +185,19 @@ void respond(int slot) {
   int rcvd;
 
   buf = malloc(BUF_SIZE);
+  if (!buf) {
+    fprintf(stderr, "Failed to allocate memory for buffer\n");
+    return;
+  }
+
   rcvd = recv(clients[slot], buf, BUF_SIZE, 0);
 
-  if (rcvd < 0) // receive error
-    fprintf(stderr, ("recv() error\n"));
-  else if (rcvd == 0) // receive socket closed
-    fprintf(stderr, "Client disconnected upexpectedly.\n");
-  else // message received
-  {
-    buf[rcvd] = '\0';
+  if (rcvd < 0) {
+    fprintf(stderr, "recv() error\n");
+  } else if (rcvd == 0) {
+    fprintf(stderr, "Client disconnected unexpectedly.\n");
+  } else {
+    buf[rcvd] = '\0'; // Убедимся, что данные корректно завершены
 
     method = strtok(buf, " \t\r\n");
     uri = strtok(NULL, " \t");
@@ -183,9 +210,9 @@ void respond(int slot) {
     qs = strchr(uri, '?');
 
     if (qs)
-      *qs++ = '\0'; // split URI
+      *qs++ = '\0';
     else
-      qs = uri - 1; // use an empty string
+      qs = uri - 1;
 
     header_t *h = reqhdr;
     char *t, *t2;
@@ -209,19 +236,23 @@ void respond(int slot) {
         break;
     }
     t = strtok(NULL, "\r\n");
-    t2 = request_header("Content-Length"); // and the related header if there is
+    t2 = request_header("Content-Length");
     payload = t;
     payload_size = t2 ? atol(t2) : (rcvd - (t - buf));
 
-    // bind clientfd to stdout, making it easier to write
     int clientfd = clients[slot];
     dup2(clientfd, STDOUT_FILENO);
     close(clientfd);
 
-    // call router
     route();
 
-    // tidy up
+    struct sockaddr_in client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+    getpeername(clientfd, (struct sockaddr *)&client_addr, &addr_len);
+    char *client_ip = inet_ntoa(client_addr.sin_addr);
+
+    log_request(client_ip, method, uri, status, response_size);
+
     fflush(stdout);
     shutdown(STDOUT_FILENO, SHUT_WR);
     close(STDOUT_FILENO);
