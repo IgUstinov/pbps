@@ -10,5 +10,13 @@ cd 04.pico-foxweb
 cat README.md
 ```
 
+## Task 2
+
+### Необходимо быть в ветке task_2
+
+```sh
+git checkout task_2
+```
+
 ### pbps
 Public repo for PBPS course (HSSE IKNT SPBPU) 
