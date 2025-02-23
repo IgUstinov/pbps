@@ -61,3 +61,6 @@
 ```sh
 make uninstall
 ```
+
+# Task 2 в ветке task_2
+
