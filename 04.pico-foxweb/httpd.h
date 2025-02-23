@@ -12,6 +12,8 @@ extern char *method, // "GET" or "POST"
     *payload;        // for POST
 
 extern int payload_size;
+extern int status;
+extern int response_size;
 
 // Server control functions
 void serve_forever(const char *PORT);
