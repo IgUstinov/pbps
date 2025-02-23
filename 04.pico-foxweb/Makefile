@@ -18,6 +18,9 @@ install: PICOFoxweb
 	install -o root -g root -m 0755 PICOFoxweb /usr/local/sbin/
 	install -o root -g root -m 0644 picofoxweb.service /etc/systemd/system/
 	systemctl daemon-reload
+	touch /var/log/foxweb.log
+	chown picofoxweb:picofoxweb /var/log/foxweb.log
+	chmod 644 /var/log/foxweb.log
 	systemctl restart picofoxweb.service
 	mkdir -p /var/www/picofoxweb
 	cp -r webroot -t /var/www/picofoxweb/
@@ -29,5 +32,6 @@ uninstall:
 	rm -rf /var/www/picofoxweb
 	rm -f /usr/local/sbin/PICOFoxweb
 	rm -f /etc/systemd/system/picofoxweb.service
+	rm -f /var/log/foxweb.log
 	systemctl daemon-reload
 	userdel -f picofoxweb	
