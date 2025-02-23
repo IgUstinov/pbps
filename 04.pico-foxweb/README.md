@@ -3,14 +3,33 @@
 
 ## Pre-build
 
-1. **Зайти под root:**
+1. **Нужен root пользователь:**
+   Например,
    ```sh
    sudo -i
    ```
 
-2. **Убедиться, что установлен `make`:**
+   _Для запуска пользователем без root прав - необходимо дописать **sudo** в каждой строчке **Makefile** в блоках **install** и **uninstall**_
+   
+2. **Нужен репозиторий:**
+   ```sh
+   git clone https://github.com/IgUstinov/pbps.git
+   ```
+
+3. **Убедиться, что установлен `make`:**
+   Например,
    ```sh
    apt update && apt install -y make
+   ```
+   Или
+   ```sh
+   apt update && apt install -y build-essential
+   ```
+
+4. **Находится в директории с Makefile**
+   
+   ```sh
+   cd
    ```
 
 ## Build
