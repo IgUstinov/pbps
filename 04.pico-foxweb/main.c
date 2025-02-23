@@ -1,5 +1,6 @@
 #include "httpd.h"
 #include <sys/stat.h>
+#include <syslog.h>
 
 #define CHUNK_SIZE 1024 // read 1024 bytes at a time
 
@@ -10,7 +11,10 @@
 
 int main(int c, char **v) {
   char *port = c == 1 ? "8000" : v[1];
+  openlog("PICOFoxweb", LOG_PID | LOG_NDELAY, LOG_DAEMON);
+  syslog(LOG_INFO, "Server started on port %s, serving from %s", port, PUBLIC_DIR);
   serve_forever(port);
+  closelog();
   return 0;
 }
 
@@ -30,14 +34,17 @@ int read_file(const char *file_name) {
   int err = 1;
 
   file = fopen(file_name, "r");
-
-  if (file) {
-    while ((nread = fread(buf, 1, sizeof buf, file)) > 0)
-      fwrite(buf, 1, nread, stdout);
-
-    err = ferror(file);
-    fclose(file);
+  if (!file) {
+    fprintf(stderr, "Failed to open file: %s\n", file_name);
+    return -1;
   }
+
+  while ((nread = fread(buf, 1, sizeof(buf), file)) > 0) {
+    fwrite(buf, 1, nread, stdout);
+  }
+
+  err = ferror(file);
+  fclose(file);
   return err;
 }
 
@@ -45,35 +52,40 @@ void route() {
   ROUTE_START()
 
   GET("/") {
-    char index_html[20];
+    char index_html[255];
     sprintf(index_html, "%s%s", PUBLIC_DIR, INDEX_HTML);
 
-    HTTP_200;
     if (file_exists(index_html)) {
-      read_file(index_html);
+      HTTP_200; // Отправляем заголовок 200 OK
+      response_size = read_file(index_html); // Отправляем содержимое файла
     } else {
-      printf("Hello! You are using %s\n\n", request_header("User-Agent"));
+      HTTP_404; // Отправляем заголовок 404 Not Found
+      printf("404 Not Found: %s\n", index_html); // Отправляем текстовый ответ
+      response_size = strlen("404 Not Found");
     }
   }
 
   GET("/test") {
-    HTTP_200;
+    HTTP_200; // Отправляем заголовок 200 OK
     printf("List of request headers:\n\n");
 
     header_t *h = request_headers();
-
     while (h->name) {
-      printf("%s: %s\n", h->name, h->value);
+      printf("%s: %s\n", h->name, h->value); // Отправляем заголовки запроса
       h++;
     }
+
+    response_size = strlen("List of request headers:\n\n") + (h - request_headers()) * 50;
   }
 
   POST("/") {
-    HTTP_201;
+    HTTP_201; // Отправляем заголовок 201 Created
     printf("Wow, seems that you POSTed %d bytes.\n", payload_size);
     printf("Fetch the data using `payload` variable.\n");
     if (payload_size > 0)
-      printf("Request body: %s", payload);
+      printf("Request body: %s", payload); // Отправляем тело запроса, если оно есть
+
+    response_size = strlen("Wow, seems that you POSTed ...") + payload_size;
   }
 
   GET(uri) {
@@ -81,13 +93,12 @@ void route() {
     sprintf(file_name, "%s%s", PUBLIC_DIR, uri);
 
     if (file_exists(file_name)) {
-      HTTP_200;
-      read_file(file_name);
+      HTTP_200; // Отправляем заголовок 200 OK
+      response_size = read_file(file_name); // Отправляем содержимое файла
     } else {
-      HTTP_404;
-      sprintf(file_name, "%s%s", PUBLIC_DIR, NOT_FOUND_HTML);
-      if (file_exists(file_name))
-        read_file(file_name);
+      HTTP_404; // Отправляем заголовок 404 Not Found
+      printf("404 Not Found: %s\n", file_name); // Отправляем текстовый ответ
+      response_size = strlen("404 Not Found");
     }
   }
 
