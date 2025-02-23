@@ -29,5 +29,5 @@ uninstall:
 	rm -rf /var/www/picofoxweb
 	rm -f /usr/local/sbin/PICOFoxweb
 	rm -f /etc/systemd/system/picofoxweb.service
-	systemctl daemon- reload userdel -f picofoxweb
-
+	systemctl daemon-reload
+	userdel -f picofoxweb	
