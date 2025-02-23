@@ -3,10 +3,10 @@
 
 ## Task 1
 
-```
+```sh
 cd 04.pico-foxweb
 ```
-```
+```sh
 cat README.md
 ```
 
