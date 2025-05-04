@@ -237,11 +237,10 @@ void respond(int slot) {
     payload = t;
     payload_size = t2 ? atol(t2) : (rcvd - (t - buf));
 
-if (!check_digest_auth(method, uri, reqhdr)) {
-    printf("Unauthorized request, sending 401 response\n");
-    send_unauthorized();
-    //goto cleanup;
-}
+    // authorization
+    if (!check_digest_auth(method, uri, reqhdr)) {
+      send_unauthorized();
+    }
 
     // bind clientfd to stdout, making it easier to write
     int clientfd = clients[slot];
@@ -252,8 +251,6 @@ if (!check_digest_auth(method, uri, reqhdr)) {
     route();
 
     // tidy up
-cleanup: 
-    printf("Received request: %s %s\n", method, uri);
     fflush(stdout);
     shutdown(STDOUT_FILENO, SHUT_WR);
     close(STDOUT_FILENO);

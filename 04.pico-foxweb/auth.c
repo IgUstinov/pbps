@@ -8,7 +8,7 @@
 #define PASSWORD "admin"
 #define REALM    "myrealm"
 
-extern void md5hex(const char *input, char *output); // реализация ниже или в utils.c
+extern void md5hex(const char *input, char *output);
 
 void md5hex(const char *input, char *output) {
   unsigned char digest[MD5_DIGEST_LENGTH];
@@ -23,7 +23,7 @@ bool check_digest_auth(const char *method, const char *uri, header_t *headers) {
   if (!auth || strncmp(auth, "Digest ", 7) != 0)
     return false;
 
-  // временные буферы
+  // bufs
   char username[64], realm[64], nonce[128], opaque[128], response[64], digest_uri[128];
   sscanf(auth,
     "Digest username=\"%[^\"]\", realm=\"%[^\"]\", nonce=\"%[^\"]\", uri=\"%[^\"]\", response=\"%[^\"]\", opaque=\"%[^\"]\"",
@@ -49,7 +49,7 @@ bool check_digest_auth(const char *method, const char *uri, header_t *headers) {
 }
 
 void send_unauthorized() {
-  const char *nonce = "abcdef"; // можно сгенерировать
+  const char *nonce = "abcdef";
   const char *opaque = "5ccc069c403ebaf9f0171e9517f40e41";
 
   printf("HTTP/1.1 401 Unauthorized\r\n");
