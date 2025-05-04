@@ -4,14 +4,17 @@ clean:
 	@rm -rf *.o
 	@rm -rf PICOFoxweb
 
-PICOFoxweb: main.o httpd.o
-	gcc -o PICOFoxweb $^
+PICOFoxweb: main.o httpd.o auth.o
+	gcc -o PICOFoxweb $^ -L/opt/homebrew/opt/openssl@3/lib -lcrypto
 
 main.o: main.c httpd.h
 	gcc -c -o main.o main.c
 
 httpd.o: httpd.c httpd.h
 	gcc -c -o httpd.o httpd.c
+
+auth.o: auth.c auth.h
+	gcc -I/opt/homebrew/opt/openssl@3/include -c -o auth.o auth.c
 
 install: PICOFoxweb
 	useradd -c "PICOFoxweb user" -r -s /sbin/nologin -d /var/www/picofoxweb picofoxweb

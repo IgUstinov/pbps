@@ -1,3 +1,4 @@
+#include "auth.h"
 #include "httpd.h"
 
 #include <arpa/inet.h>
@@ -185,19 +186,15 @@ void respond(int slot) {
   int rcvd;
 
   buf = malloc(BUF_SIZE);
-  if (!buf) {
-    fprintf(stderr, "Failed to allocate memory for buffer\n");
-    return;
-  }
-
   rcvd = recv(clients[slot], buf, BUF_SIZE, 0);
 
-  if (rcvd < 0) {
-    fprintf(stderr, "recv() error\n");
-  } else if (rcvd == 0) {
-    fprintf(stderr, "Client disconnected unexpectedly.\n");
-  } else {
-    buf[rcvd] = '\0'; // Убедимся, что данные корректно завершены
+  if (rcvd < 0) // receive error
+    fprintf(stderr, ("recv() error\n"));
+  else if (rcvd == 0) // receive socket closed
+    fprintf(stderr, "Client disconnected upexpectedly.\n");
+  else // message received
+  {
+    buf[rcvd] = '\0';
 
     method = strtok(buf, " \t\r\n");
     uri = strtok(NULL, " \t");
@@ -210,9 +207,9 @@ void respond(int slot) {
     qs = strchr(uri, '?');
 
     if (qs)
-      *qs++ = '\0';
+      *qs++ = '\0'; // split URI
     else
-      qs = uri - 1;
+      qs = uri - 1; // use an empty string
 
     header_t *h = reqhdr;
     char *t, *t2;
@@ -236,23 +233,27 @@ void respond(int slot) {
         break;
     }
     t = strtok(NULL, "\r\n");
-    t2 = request_header("Content-Length");
+    t2 = request_header("Content-Length"); // and the related header if there is
     payload = t;
     payload_size = t2 ? atol(t2) : (rcvd - (t - buf));
 
+if (!check_digest_auth(method, uri, reqhdr)) {
+    printf("Unauthorized request, sending 401 response\n");
+    send_unauthorized();
+    //goto cleanup;
+}
+
+    // bind clientfd to stdout, making it easier to write
     int clientfd = clients[slot];
     dup2(clientfd, STDOUT_FILENO);
     close(clientfd);
 
+    // call router
     route();
 
-    struct sockaddr_in client_addr;
-    socklen_t addr_len = sizeof(client_addr);
-    getpeername(clientfd, (struct sockaddr *)&client_addr, &addr_len);
-    char *client_ip = inet_ntoa(client_addr.sin_addr);
-
-    log_request(client_ip, method, uri, status, response_size);
-
+    // tidy up
+cleanup: 
+    printf("Received request: %s %s\n", method, uri);
     fflush(stdout);
     shutdown(STDOUT_FILENO, SHUT_WR);
     close(STDOUT_FILENO);
