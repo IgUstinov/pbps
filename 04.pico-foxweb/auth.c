@@ -4,9 +4,8 @@
 #include <stdlib.h>
 #include <openssl/md5.h>
 
-#define USERNAME "admin"
-#define PASSWORD "admin"
 #define REALM    "myrealm"
+#define HTPASSWD_FILE "/etc/picofoxweb/htdigest"
 
 extern void md5hex(const char *input, char *output);
 
@@ -18,24 +17,44 @@ void md5hex(const char *input, char *output) {
   output[32] = '\0';
 }
 
+int load_ha1_from_htdigest(const char *username, const char *realm, char *out_ha1) {
+  FILE *fp = fopen(HTPASSWD_FILE, "r");
+  if (!fp) return 0;
+
+  char line[512], file_user[128], file_realm[128], file_hash[128];
+
+  while (fgets(line, sizeof(line), fp)) {
+    if (sscanf(line, "%127[^:]:%127[^:]:%127s", file_user, file_realm, file_hash) == 3) {
+      if (strcmp(username, file_user) == 0 && strcmp(realm, file_realm) == 0) {
+        strncpy(out_ha1, file_hash, 33); // 32 символа + \0
+        fclose(fp);
+        return 1;
+      }
+    }
+  }
+
+  fclose(fp);
+  return 0;
+}
+
 bool check_digest_auth(const char *method, const char *uri, header_t *headers) {
   char *auth = get_header(headers, "Authorization");
   if (!auth || strncmp(auth, "Digest ", 7) != 0)
     return false;
 
-  // bufs
   char username[64], realm[64], nonce[128], opaque[128], response[64], digest_uri[128];
   sscanf(auth,
-    "Digest username=\"%[^\"]\", realm=\"%[^\"]\", nonce=\"%[^\"]\", uri=\"%[^\"]\", response=\"%[^\"]\", opaque=\"%[^\"]\"",
+    "Digest username=\"%63[^\"]\", realm=\"%63[^\"]\", nonce=\"%127[^\"]\", uri=\"%127[^\"]\", response=\"%63[^\"]\", opaque=\"%127[^\"]\"",
     username, realm, nonce, digest_uri, response, opaque);
 
-  if (strcmp(username, USERNAME) != 0 || strcmp(realm, REALM) != 0)
+  if (strcmp(realm, REALM) != 0)
     return false;
 
-  // HA1 = MD5(username:realm:password)
-  char ha1src[256], ha2src[256], ha1[33], ha2[33], finalsrc[512], expected[33];
-  snprintf(ha1src, sizeof(ha1src), "%s:%s:%s", username, realm, PASSWORD);
-  md5hex(ha1src, ha1);
+  char ha1[33];  // MD5 hash of username:realm:password
+  if (!load_ha1_from_htdigest(username, realm, ha1))
+    return false;
+
+  char ha2src[256], ha2[33], finalsrc[512], expected[33];
 
   // HA2 = MD5(method:uri)
   snprintf(ha2src, sizeof(ha2src), "%s:%s", method, digest_uri);
