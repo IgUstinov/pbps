@@ -1,6 +1,15 @@
 # Tasks
 5140904/40102 Устинов Игорь Владиславович 
 
+## Курсовая работа
+
+### Описание в файле DIGEST_README.md
+
+### Ветка digest
+```sh
+git checkout digest
+```
+
 ## Task 2
 
 ### Описание в файле TASK_2_README.md
