@@ -1,6 +1,16 @@
 # Overview 
 Устинов Игорь Владиславович 5140904/40102
 
+## Курсовая работа
+
+### Необходимо быть в ветке digest
+
+```sh
+git checkout task_2
+cd 04.pico-foxweb
+cat DIGEST_README.md
+```
+
 ## Task 1
 
 ```sh
