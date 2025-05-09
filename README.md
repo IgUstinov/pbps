@@ -6,7 +6,7 @@
 ### Необходимо быть в ветке digest
 
 ```sh
-git checkout task_2
+git checkout digest
 cd 04.pico-foxweb
 cat DIGEST_README.md
 ```
